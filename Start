@@ -1,1 +1,208 @@
-
+ (cd "$(git rev-parse --show-toplevel)" && git apply --3way <<'EOF' 
+diff --git a/index.html b/index.html
+new file mode 100644
+index 0000000000000000000000000000000000000000..f4889e04fb2d62386edeb5d6bc43d70fa90cb4a7
+--- /dev/null
++++ b/index.html
+@@ -0,0 +1,198 @@
++<!DOCTYPE html>
++<html lang="de">
++<head>
++    <meta charset="UTF-8" />
++    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
++    <title>Emoji Slotmaschine</title>
++    <style>
++        * {
++            box-sizing: border-box;
++            font-family: "Segoe UI", "Noto Color Emoji", sans-serif;
++        }
++
++        body {
++            margin: 0;
++            min-height: 100vh;
++            display: flex;
++            align-items: center;
++            justify-content: center;
++            background: radial-gradient(circle at top, #1f1c2c, #928dab);
++            color: #fff;
++        }
++
++        .slot-machine {
++            background: rgba(0, 0, 0, 0.55);
++            border-radius: 20px;
++            padding: 2.5rem 2rem;
++            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.45);
++            text-align: center;
++            width: min(90vw, 420px);
++        }
++
++        h1 {
++            margin-top: 0;
++            font-size: 2rem;
++            letter-spacing: 0.1em;
++        }
++
++        .slots {
++            display: grid;
++            grid-template-columns: repeat(3, 1fr);
++            gap: 0.75rem;
++            margin: 2rem 0;
++        }
++
++        .slot {
++            font-size: 3.25rem;
++            border-radius: 12px;
++            padding: 1.25rem 0;
++            background: linear-gradient(135deg, rgba(255, 255, 255, 0.15), rgba(255, 255, 255, 0.05));
++            border: 2px solid rgba(255, 255, 255, 0.2);
++            backdrop-filter: blur(6px);
++        }
++
++        .info {
++            font-size: 1.1rem;
++            min-height: 1.5em;
++            margin-bottom: 1rem;
++        }
++
++        .balance {
++            font-size: 1.25rem;
++            font-weight: bold;
++        }
++
++        button {
++            padding: 0.85rem 2.5rem;
++            border: none;
++            border-radius: 999px;
++            font-size: 1.1rem;
++            background: linear-gradient(135deg, #f7971e, #ffd200);
++            color: #2d1d02;
++            cursor: pointer;
++            transition: transform 0.15s ease, box-shadow 0.15s ease;
++        }
++
++        button:hover {
++            transform: translateY(-2px);
++            box-shadow: 0 8px 18px rgba(0, 0, 0, 0.35);
++        }
++
++        button:disabled {
++            opacity: 0.6;
++            cursor: not-allowed;
++            transform: none;
++            box-shadow: none;
++        }
++    </style>
++</head>
++<body>
++    <div class="slot-machine">
++        <h1>Emoji Slotmaschine</h1>
++        <div class="balance" id="balance">Kapital: 1.000€</div>
++        <div class="info" id="info">Drücke auf "Drehen" um zu starten!</div>
++        <div class="slots" id="slots">
++            <div class="slot" data-index="0">🍒</div>
++            <div class="slot" data-index="1">🍋</div>
++            <div class="slot" data-index="2">⭐</div>
++        </div>
++        <button id="spin">Drehen (10€)</button>
++    </div>
++
++    <script>
++        const SPIN_COST = 10;
++        const PAYOUT = 60; // Netto-Gewinn von 50€ pro Sieg (60€ - 10€ Einsatz)
++        const emojis = ["🍒", "🍋", "🍇", "🍀", "💎", "🔔"];
++        const winningEmoji = "🎉";
++
++        const slotElements = Array.from(document.querySelectorAll(".slot"));
++        const balanceElement = document.getElementById("balance");
++        const infoElement = document.getElementById("info");
++        const spinButton = document.getElementById("spin");
++
++        let balance = 1000;
++        let isSpinning = false;
++
++        function formatCurrency(value) {
++            return value.toLocaleString("de-DE", {
++                style: "currency",
++                currency: "EUR",
++                maximumFractionDigits: 0
++            });
++        }
++
++        function updateBalanceDisplay() {
++            balanceElement.textContent = `Kapital: ${formatCurrency(balance)}`;
++        }
++
++        function setInfoMessage(message, isWin = false) {
++            infoElement.textContent = message;
++            infoElement.style.color = isWin ? "#9cff8a" : "#ff9f9f";
++        }
++
++        function randomEmoji() {
++            return emojis[Math.floor(Math.random() * emojis.length)];
++        }
++
++        function spinSlots() {
++            const results = slotElements.map(() => randomEmoji());
++            results.forEach((emoji, index) => {
++                slotElements[index].textContent = emoji;
++            });
++            return results;
++        }
++
++        function isWinningCombination(results) {
++            return results.every((emoji) => emoji === results[0]);
++        }
++
++        function handleSpin() {
++            if (isSpinning) {
++                return;
++            }
++
++            if (balance < SPIN_COST) {
++                setInfoMessage("Nicht genug Kapital, um weiterzuspielen.");
++                spinButton.disabled = true;
++                return;
++            }
++
++            isSpinning = true;
++            spinButton.disabled = true;
++            balance -= SPIN_COST;
++            updateBalanceDisplay();
++            setInfoMessage("Viel Glück!");
++
++            const spinDuration = 1200;
++            const interval = 80;
++            const startTime = performance.now();
++
++            const animation = setInterval(() => {
++                slotElements.forEach((slot) => {
++                    slot.textContent = randomEmoji();
++                });
++
++                if (performance.now() - startTime >= spinDuration) {
++                    clearInterval(animation);
++                    const results = spinSlots();
++                    const hasWon = isWinningCombination(results);
++
++                    if (hasWon) {
++                        balance += PAYOUT;
++                        updateBalanceDisplay();
++                        setInfoMessage(`Du hast gewonnen! ${winningEmoji}`, true);
++                    } else {
++                        setInfoMessage("Du hast verloren.");
++                    }
++
++                    isSpinning = false;
++                    spinButton.disabled = balance < SPIN_COST;
++                }
++            }, interval);
++        }
++
++        spinButton.addEventListener("click", handleSpin);
++        updateBalanceDisplay();
++    </script>
++</body>
++</html>
+ 
+EOF
+)
